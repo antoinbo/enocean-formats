@@ -35,12 +35,14 @@ types:
           cases:
             "packet_types::radio_erp1": radio_erp1_data(data_length)
             "packet_types::response": response_data(data_length)
+            "packet_types::radio_sub_tel": radio_erp1_data(data_length)
             _: esp3_data(data_length)
       - id: optional_data
         type:
           switch-on: packet_type
           cases:
             "packet_types::radio_erp1": radio_erp1_optional_data(optional_data_length)
+            "packet_types::radio_sub_tel": radio_sub_tel_optional_data(optional_data_length)
             _: esp3_optional_data(optional_data_length)
       - id: data_crc8
         type: u1
@@ -102,6 +104,53 @@ types:
         enum: response_code
       - id: data
         size: data_length - 1
+  radio_sub_tel_optional_data:
+    params:
+      - id: optional_data_length
+        type: u2
+    seq:
+      - id: sub_tel_num
+        type: u1
+        doc: Total number s of received sub-telegrams (including repeated sub-telegrams)
+      - id: destination
+        type: eurid
+        doc: |
+          Broadcast: 0xFFFFFFFF
+          Addressed (ADT): Destination ID
+      - id: dbm
+        type: u1
+        doc: |
+          Send case: 0xFF
+          Receive case: best RSSI value of all received subtelegrams (value decimal without minus)
+      - id: security_level
+        type: u1
+        enum: security_levels
+        doc: |
+          Send Case: Will be ignored (Security is selected by link table entries)
+          Receive case:
+          0x00: Telegram not processed
+          0x01: Obsolete (old security concept)
+          0x02: Telegram decrypted
+          0x03: Telegram authenticated
+          0x04: Telegram decrypted + authenticated
+      - id: timestamp
+        type: u2
+        doc: Reference timestamp of 1 st sub-telegram (using system time with 1ms increments)
+      - id: sub_telegrams
+        type: radio_sub_telegram
+        repeat: expr
+        repeat-expr: sub_tel_num
+  radio_sub_telegram:
+    seq:
+      - id: offset
+        type: u1
+        doc: Relative time offset (in ms) between this sub-telegram and the 1st sub-telegram
+      - id: rssi
+        type: u1
+        doc: RSSI value of each subtelegram
+      - id: status
+        type: u1
+        doc: Telegram control bits of each subtelegram – used in case of repeating, switch telegram encapsulation, checksum type identification
 enums:
   packet_types:
     # 0x00 --- Reserved
